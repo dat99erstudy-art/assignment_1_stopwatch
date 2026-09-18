@@ -1,0 +1,87 @@
+/*
+ * data_uart.c
+ *
+ *  Created on: Sep 12, 2026
+ *      Author: MAC
+ */
+
+#include "data_uart.h"
+#include "can_messages.h"
+
+
+static uint8_t uartRxByte;
+static UART_HandleTypeDef *pUartHandle;
+
+volatile uint8_t f103_wiperStatus = 0;
+volatile uint8_t f103_turnStatus = 0;
+
+extern CAN_HandleTypeDef hcan;
+void CAN_Send_Front_Status(CAN_HandleTypeDef *hcan, uint8_t actuatorMask, uint8_t wiperFlag);
+
+void F103_Bridge_Init(UART_HandleTypeDef *huart) {
+    pUartHandle = huart;
+    HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+}
+// Thêm vào data_uart.c (của F411)
+void Bridge_SendError(uint8_t errorCode, uint8_t errorMask) {
+    uint8_t txPacket[4];
+    txPacket[0] = 0xEE;                           // Header ĐẶC BIỆT dành cho việc báo lỗi
+    txPacket[1] = errorCode;                      // Ví dụ: ERR_WIPER_STALL (0x06)
+    txPacket[2] = errorMask;                      // Ví dụ: CMD_FRONT_WIPER (0x04)
+    txPacket[3] = (uint8_t)(errorCode + errorMask); // Checksum
+
+    HAL_UART_Transmit(pUartHandle, txPacket, 4, 100);
+}
+
+void CAN_Send_Front_Error(CAN_HandleTypeDef *hcan, uint8_t errorCode, uint8_t errorMask) {
+    CAN_TxHeaderTypeDef TxHeader;
+    uint8_t txData[2];
+    uint32_t pTxMailbox;
+
+    txData[0] = errorCode;
+    txData[1] = errorMask;
+
+    TxHeader.StdId = CAN_ID_FRONT_ERROR; // 0x2FF
+    TxHeader.ExtId = 0x00;
+    TxHeader.RTR = CAN_RTR_DATA;
+    TxHeader.IDE = CAN_ID_STD;
+    TxHeader.DLC = 2; // DLC = 2 theo can_messages_6.h
+    TxHeader.TransmitGlobalTime = DISABLE;
+
+    if(HAL_CAN_GetTxMailboxesFreeLevel(hcan) > 0) {
+        HAL_CAN_AddTxMessage(hcan, &TxHeader, txData, &pTxMailbox);
+    }
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == pUartHandle->Instance) {
+        static uint8_t slide_buf[4];
+        static uint8_t slide_idx = 0;
+
+        slide_buf[slide_idx++] = uartRxByte;
+
+        // Nếu byte đầu không phải 0x55 (Status) và cũng không phải 0xEE (Error) -> Dịch mảng
+        if (slide_idx == 1 && slide_buf[0] != 0x55 && slide_buf[0] != 0xEE) {
+            slide_idx = 0;
+        }
+        else if (slide_idx >= 4) {
+            uint8_t byte1 = slide_buf[1];
+            uint8_t byte2 = slide_buf[2];
+            uint8_t cs    = slide_buf[3];
+
+            if (cs == (uint8_t)(byte1 + byte2)) {
+                // Rẽ nhánh tùy theo Header
+                if (slide_buf[0] == 0x55) {
+                    // Dịch dữ liệu Trạng thái và gửi CAN 0x200
+                    CAN_Send_Front_Status(&hcan, byte1, byte2);
+                }
+                else if (slide_buf[0] == 0xEE) {
+                    // Dịch dữ liệu Lỗi và gửi CAN 0x2FF
+                    CAN_Send_Front_Error(&hcan, byte1, byte2);
+                }
+            }
+            slide_idx = 0;
+        }
+        HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+    }
+}

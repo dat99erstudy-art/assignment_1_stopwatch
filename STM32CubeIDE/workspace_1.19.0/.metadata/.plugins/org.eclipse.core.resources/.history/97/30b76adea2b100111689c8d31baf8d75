@@ -1,0 +1,54 @@
+/*
+ * data_uart.c
+ *
+ *  Created on: Sep 12, 2026
+ *      Author: MAC
+ */
+
+#include "data_uart.h"
+
+
+
+static uint8_t uartRxByte;
+static uint8_t rxPacket[4];
+static uint8_t rxIndex = 0;
+static UART_HandleTypeDef *pUartHandle;
+
+uint8_t f103_wiperStatus = 0;
+uint8_t f103_turnStatus = 0;
+
+extern CAN_HandleTypeDef hcan;
+void CAN_Send_Front_Command(CAN_HandleTypeDef *hcan, uint8_t wiperStatus, uint8_t turnStatus);
+
+void F103_Bridge_Init(UART_HandleTypeDef *huart) {
+    pUartHandle = huart;
+    HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == pUartHandle->Instance) {
+        if (rxIndex == 0) {
+            // Chờ byte header 0x55 do F411 truyền lên
+            if (uartRxByte == 0x55) {
+                rxPacket[rxIndex++] = uartRxByte;
+            }
+        } else {
+            rxPacket[rxIndex++] = uartRxByte;
+
+            if (rxIndex >= 4) {
+                uint8_t wiper = rxPacket[1];
+                uint8_t turn  = rxPacket[2];
+                uint8_t checksum = rxPacket[3];
+
+                // Kiểm tra checksum cơ bản
+                if (checksum == (uint8_t)(wiper + turn)) {
+                    f103_wiperStatus = wiper;
+                    f103_turnStatus  = turn;
+                    CAN_Send_Front_Command(&hcan, wiper, turn);
+                }
+                rxIndex = 0;
+            }
+        }
+        HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+    }
+}

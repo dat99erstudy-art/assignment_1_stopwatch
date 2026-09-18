@@ -1,0 +1,11 @@
+dtc_code_received
+dtc_severity
+dtc_counter
+simple_error_code
+rxed_can_id
+rxed_dlc
+rx_counter
+rxed_data
+monitored_wiper
+monitored_turn
+dbg_tx_status

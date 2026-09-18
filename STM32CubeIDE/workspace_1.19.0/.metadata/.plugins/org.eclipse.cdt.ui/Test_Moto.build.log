@@ -1,0 +1,36 @@
+13:12:37 **** Incremental Build of configuration Debug for project Test_Moto ****
+make -j7 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F411xE -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c: In function 'Quay_Phai':
+../Core/Src/main.c:84:23: error: 'ENA_GPIO_Port' undeclared (first use in this function); did you mean 'ENB_GPIO_Port'?
+   84 |     HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_SET);
+      |                       ^~~~~~~~~~~~~
+      |                       ENB_GPIO_Port
+../Core/Src/main.c:84:23: note: each undeclared identifier is reported only once for each function it appears in
+../Core/Src/main.c:84:38: error: 'ENA_Pin' undeclared (first use in this function); did you mean 'ENB_Pin'?
+   84 |     HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_SET);
+      |                                      ^~~~~~~
+      |                                      ENB_Pin
+../Core/Src/main.c: In function 'Quay_Trai':
+../Core/Src/main.c:90:23: error: 'ENA_GPIO_Port' undeclared (first use in this function); did you mean 'ENB_GPIO_Port'?
+   90 |     HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_SET);
+      |                       ^~~~~~~~~~~~~
+      |                       ENB_GPIO_Port
+../Core/Src/main.c:90:38: error: 'ENA_Pin' undeclared (first use in this function); did you mean 'ENB_Pin'?
+   90 |     HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_SET);
+      |                                      ^~~~~~~
+      |                                      ENB_Pin
+../Core/Src/main.c: In function 'Dung_Dong_Co':
+../Core/Src/main.c:96:23: error: 'ENA_GPIO_Port' undeclared (first use in this function); did you mean 'ENB_GPIO_Port'?
+   96 |     HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_RESET);
+      |                       ^~~~~~~~~~~~~
+      |                       ENB_GPIO_Port
+../Core/Src/main.c:96:38: error: 'ENA_Pin' undeclared (first use in this function); did you mean 'ENB_Pin'?
+   96 |     HAL_GPIO_WritePin(ENA_GPIO_Port, ENA_Pin, GPIO_PIN_RESET);
+      |                                      ^~~~~~~
+      |                                      ENB_Pin
+make: *** [Core/Src/subdir.mk:34: Core/Src/main.o] Error 1
+"make -j7 all" terminated with exit code 2. Build might be incomplete.
+
+13:12:39 Build Failed. 7 errors, 0 warnings. (took 1s.426ms)
+

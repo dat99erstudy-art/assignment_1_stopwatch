@@ -1,0 +1,71 @@
+/*
+ * data_uart.c
+ *
+ *  Created on: Sep 4, 2026
+ *      Author: MAC
+ */
+
+#include "data_uart.h"
+
+static uint8_t uartRxByte;
+static uint8_t rxPacket[4];
+static uint8_t rxIndex = 0;
+static UART_HandleTypeDef *pUartHandle;
+
+
+uint8_t currentCmdWiper = 0;
+uint8_t currentCmdTurn = 0;
+
+void Bridge_Init(UART_HandleTypeDef *huart) {
+    pUartHandle = huart;
+    // Vẫn duy trì ngắt nhận (RX) để giữ khả năng giao tiếp hai chiều khi cần
+    HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+}
+
+// Thêm vào data_uart.c (của F411)
+void Bridge_SendError(uint8_t errorCode, uint8_t errorMask) {
+    uint8_t txPacket[4];
+    txPacket[0] = 0xEE;                           // Header ĐẶC BIỆT dành cho việc báo lỗi
+    txPacket[1] = errorCode;                      // Ví dụ: ERR_WIPER_STALL (0x06)
+    txPacket[2] = errorMask;                      // Ví dụ: CMD_FRONT_WIPER (0x04)
+    txPacket[3] = (uint8_t)(errorCode + errorMask); // Checksum
+
+    HAL_UART_Transmit(pUartHandle, txPacket, 4, 100);
+}
+
+void Bridge_SendFault(uint8_t severity, uint16_t dtc_code, uint8_t counter, uint8_t simple_err) {
+    uint8_t txPacket[6];
+    txPacket[0] = 0xEE;                           // Header nhận diện lỗi
+    txPacket[1] = severity;                       // Byte 0 của CAN 0x500
+    txPacket[2] = UNPACK_HIGH_BYTE(dtc_code);     // Byte 1 của CAN 0x500
+    txPacket[3] = UNPACK_LOW_BYTE(dtc_code);      // Byte 2 của CAN 0x500
+    txPacket[4] = counter;                        // Byte 3 của CAN 0x500
+    txPacket[5] = simple_err;                     // Byte 4 của CAN 0x500
+
+    HAL_UART_Transmit(&huart2, txPacket, 6, 100);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == pUartHandle->Instance) {
+        if (rxIndex == 0) {
+            if (uartRxByte == 0xAA) {
+                rxPacket[rxIndex++] = uartRxByte;
+            }
+        } else {
+            rxPacket[rxIndex++] = uartRxByte;
+
+            if (rxIndex >= 4) {
+                uint8_t cmdWiper = rxPacket[1];
+                uint8_t cmdTurn  = rxPacket[2];
+                uint8_t checksum = rxPacket[3];
+
+                if (checksum == (uint8_t)(cmdWiper + cmdTurn)) {
+                    currentCmdWiper = cmdWiper;
+                    currentCmdTurn  = cmdTurn;
+                }
+                rxIndex = 0;
+            }
+        }
+        HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+    }
+}

@@ -1,0 +1,65 @@
+/*
+ * data_uart.c
+ *
+ *  Created on: Sep 12, 2026
+ *      Author: MAC
+ */
+
+#include "data_uart.h"
+#include "can_messages.h"
+#include "data_can.h"
+
+static uint8_t uartRxByte;
+static UART_HandleTypeDef *pUartHandle;
+
+volatile uint8_t f103_wiperStatus = 0;
+volatile uint8_t f103_turnStatus = 0;
+volatile HAL_StatusTypeDef dbg_tx_status
+
+extern CAN_HandleTypeDef hcan;
+
+void F103_Bridge_Init(UART_HandleTypeDef *huart) {
+    pUartHandle = huart;
+    HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == pUartHandle->Instance) {
+        static uint8_t slide_buf[6];
+        static uint8_t slide_idx = 0;
+
+        slide_buf[slide_idx++] = uartRxByte;
+
+        // Nếu byte đầu không phải 0x55 (Status) và cũng không phải 0xEE (Error) -> Dịch mảng
+        if (slide_idx == 1 && slide_buf[0] != 0x55 && slide_buf[0] != 0xEE) {
+            slide_idx = 0;
+        }
+        // Xử lý gói tin lỗi chuẩn v3.0 (Header 0xEE, tổng 6 bytes)[cite: 1]
+		else if (slide_buf[0] == 0xEE && slide_idx >= 6) {
+			CAN_TxHeaderTypeDef TxHeader;
+			uint8_t can_data[5];
+			uint32_t TxMailbox;
+
+			can_data[0] = slide_buf[1]; // DTC Severity[cite: 1]
+			can_data[1] = slide_buf[2]; // DTC Code High Byte[cite: 1]
+			can_data[2] = slide_buf[3]; // DTC Code Low Byte[cite: 1]
+			can_data[3] = slide_buf[4]; // Occurrence Counter[cite: 1]
+			can_data[4] = slide_buf[5]; // Simple Error Code[cite: 1]
+
+			TxHeader.StdId = CAN_ID_FAULT_FRONT_BCM; // 0x500[cite: 1]
+			TxHeader.RTR   = CAN_RTR_DATA;
+			TxHeader.IDE   = CAN_ID_STD;
+			TxHeader.DLC   = 5; // Bắt buộc DLC = 5[cite: 1]
+			TxHeader.TransmitGlobalTime = DISABLE;
+
+			dbg_tx_status = HAL_CAN_AddTxMessage(&hcan, &TxHeader, can_data, &TxMailbox);
+			slide_idx = 0;
+		}
+
+        if (slide_idx >= 6) {
+			slide_idx = 0;
+		}
+
+        HAL_UART_Receive_IT(pUartHandle, &uartRxByte, 1);
+    }
+}

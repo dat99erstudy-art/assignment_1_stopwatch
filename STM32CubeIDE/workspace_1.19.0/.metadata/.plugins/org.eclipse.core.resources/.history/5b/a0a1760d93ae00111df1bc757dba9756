@@ -1,0 +1,58 @@
+/*
+ * data_can.c
+ *
+ *  Created on: Sep 12, 2026
+ *      Author: MAC
+ */
+
+#include "data_can.h"
+#include "stm32f1xx_hal.h"
+
+extern UART_HandleTypeDef huart1; // Khai báo extern huart1 để callback CAN có thể gọi truyền UART nếu cần
+
+void CAN_Init_Filter_And_Start(CAN_HandleTypeDef *hcan) {
+    CAN_FilterTypeDef sFilterConfig;
+    sFilterConfig.FilterBank = 0;
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    sFilterConfig.FilterIdHigh = 0x0000;
+    sFilterConfig.FilterIdLow = 0x0000;
+    sFilterConfig.FilterMaskIdHigh = 0x0000;
+    sFilterConfig.FilterMaskIdLow = 0x0000;
+    sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    sFilterConfig.FilterActivation = ENABLE;
+    sFilterConfig.SlaveStartFilterBank = 14;
+
+    if (HAL_CAN_ConfigFilter(hcan, &sFilterConfig) != HAL_OK) {
+        Error_Handler();
+    }
+
+    if (HAL_CAN_Start(hcan) != HAL_OK) {
+        Error_Handler();
+    }
+
+    if (HAL_CAN_ActivateNotification(hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+    if (hcan->Instance == CAN1) {
+        CAN_RxHeaderTypeDef RxHeader;
+        uint8_t rxData[8];
+
+        if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, rxData) == HAL_OK) {
+            if (RxHeader.StdId == 0x101) {
+                uint8_t uartBuffer[4];
+
+                uartBuffer[0] = 0xAA;
+                uartBuffer[1] = rxData[0];
+                uartBuffer[2] = rxData[1];
+                uartBuffer[3] = uartBuffer[1] + uartBuffer[2];
+
+                HAL_UART_Transmit(&huart1, uartBuffer, 4, 100);
+            }
+        }
+    }
+}
+

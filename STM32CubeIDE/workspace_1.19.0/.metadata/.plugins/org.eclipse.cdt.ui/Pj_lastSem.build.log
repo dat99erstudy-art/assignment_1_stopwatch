@@ -1,0 +1,10 @@
+20:02:50 **** Incremental Build of configuration Debug for project Pj_lastSem ****
+make -j7 all 
+arm-none-eabi-size  Pj_lastSem.elf 
+   text	   data	    bss	    dec	    hex	filename
+  25208	    112	   2160	  27480	   6b58	Pj_lastSem.elf
+Finished building: default.size.stdout
+ 
+
+20:02:50 Build Finished. 0 errors, 0 warnings. (took 371ms)
+

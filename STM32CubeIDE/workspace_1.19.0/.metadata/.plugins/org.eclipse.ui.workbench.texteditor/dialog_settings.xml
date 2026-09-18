@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<item key="hasShownOverlayPopupBefore" value="true"/>
+	<item key="replaceBarOpen" value="true"/>
+	<list key="searchhistory">
+		<item value="GPIO_PIN_7"/>
+		<item value="GPIO_PIN_2"/>
+		<item value="GPIO_PIN_1"/>
+		<item value="PWM_Moto"/>
+		<item value="Moto_Wash_Task"/>
+		<item value="htim"/>
+		<item value="TIM_CHANNEL_1"/>
+		<item value="static void MX_TIM2_Init(void)"/>
+		<item value="Servo_SetSpeed"/>
+		<item value="Motor_SetSpeed"/>
+		<item value="15"/>
+		<item value="PWM_Pin"/>
+		<item value="PWM"/>
+		<item value="PE7"/>
+		<item value="PIN"/>
+	</list>
+	<list key="replacehistory">
+		<item value="LED_Moto_Pin"/>
+		<item value="Signal_Right_Pin"/>
+		<item value="Signal_Left_Pin"/>
+		<item value="Motor_Wash_Task"/>
+		<item value="Servo_SetSpeed"/>
+	</list>
+</section>

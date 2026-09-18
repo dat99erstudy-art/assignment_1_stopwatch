@@ -1,0 +1,80 @@
+/*
+ * data_can.c
+ *
+ *  Created on: Sep 12, 2026
+ *      Author: MAC
+ */
+
+#include "data_can.h"
+#include "main.h"
+#include "can_messages.h"
+
+extern UART_HandleTypeDef huart1; // Khai báo extern huart1 để callback CAN có thể gọi truyền UART nếu cần
+volatile HAL_StatusTypeDef last_can_status = 0xFF;
+
+void CAN_Init_Filter_And_Start(CAN_HandleTypeDef *hcan) {
+    CAN_FilterTypeDef sFilterConfig;
+    sFilterConfig.FilterBank = 0;
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+    sFilterConfig.FilterIdHigh = 0x0000;
+    sFilterConfig.FilterIdLow = 0x0000;
+    sFilterConfig.FilterMaskIdHigh = 0x0000;
+    sFilterConfig.FilterMaskIdLow = 0x0000;
+    sFilterConfig.FilterFIFOAssignment = CAN_RX_FIFO0;
+    sFilterConfig.FilterActivation = ENABLE;
+    sFilterConfig.SlaveStartFilterBank = 14;
+
+    if (HAL_CAN_ConfigFilter(hcan, &sFilterConfig) != HAL_OK) {
+        Error_Handler();
+    }
+
+    if (HAL_CAN_Start(hcan) != HAL_OK) {
+        Error_Handler();
+    }
+
+    if (HAL_CAN_ActivateNotification(hcan, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+void CAN_Send_Front_Command(CAN_HandleTypeDef *hcan, uint8_t wiperStatus, uint8_t turnStatus) {
+
+	CAN_TxHeaderTypeDef TxHeader;
+    uint8_t txData[1] = {0};
+    uint32_t pTxMailbox;
+
+    if (wiperStatus != 0) {
+        txData[0] |= CMD_FRONT_WIPER;
+    }
+    if (turnStatus == 1) {
+        txData[0] |= CMD_FRONT_L_TURN;
+    } else if (turnStatus == 2) {
+        txData[0] |= CMD_FRONT_R_TURN;
+    } else if (turnStatus == 3) {
+        txData[0] |= (CMD_FRONT_L_TURN | CMD_FRONT_R_TURN);
+    }
+
+    TxHeader.StdId = CAN_ID_FRONT_CMD;
+    TxHeader.ExtId = 0x00;
+    TxHeader.RTR = CAN_RTR_DATA;
+    TxHeader.IDE = CAN_ID_STD;
+    TxHeader.DLC = 1;
+    TxHeader.TransmitGlobalTime = DISABLE;
+
+//    txData[0] = 0;
+//	if (wiperStatus != 0) txData[0] |= 0x04; // ví dụ bitmask wiper
+//	if (turnStatus == 1)  txData[0] |= 0x08; // ví dụ bitmask turn
+	last_can_status = HAL_CAN_AddTxMessage(hcan, &TxHeader, txData, &pTxMailbox);
+
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+    if (hcan->Instance == CAN1) {
+        CAN_RxHeaderTypeDef RxHeader;
+        uint8_t rxData[8];
+
+        if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &RxHeader, rxData) == HAL_OK) {}
+    }
+}
+
